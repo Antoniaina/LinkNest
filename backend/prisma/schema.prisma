@@ -15,6 +15,7 @@ model User {
   createdAt DateTime @default(now())
   bookmarks Bookmark[]
   collections Collection[]
+  hashedRefreshToken String?
 }
 
 model Bookmark {
