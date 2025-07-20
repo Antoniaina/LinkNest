@@ -15,7 +15,7 @@ export class AuthService {
         private config: ConfigService,
     ) {}
 
-    async signup(dto: SignUpDto, res: Response){
+    async signup(dto: SignUpDto, res: Response) {
         const { email, password, username } = dto;
 
         const exisiting = await this.prisma.user.findUnique({
@@ -49,7 +49,7 @@ export class AuthService {
         return { access_token: (await tokens).access_token }
     }
 
-    async signin(dto: SignInDto, res: Response){
+    async signin(dto: SignInDto, res: Response) {
         const { email, password } = dto;
 
         const user = await this.prisma.user.findUnique({
@@ -96,10 +96,41 @@ export class AuthService {
     }
 
     async updateRefreshToken(userId: number, refreshToken: string) {
-        const hash = bcrypt.hash(refreshToken, 10);
+        const hash = await bcrypt.hash(refreshToken, 10);
         await this.prisma.user.update({
             where: {id: userId},
             data: { hashedRefreshToken: hash },
         });
+    }
+
+    async refreshTokens(refreshToken: string, res: Response) {
+        if (!refreshToken) throw new ForbiddenException('No refresh token');
+
+        const user = await this.prisma.user.findFirst({
+            where: {
+                hashedRefreshToken: {
+                    not: null,
+                },
+            },
+        })
+
+        if (!user || !user.hashedRefreshToken) throw new ForbiddenException('Access denied');
+
+        const rtMatch = bcrypt.compare(refreshToken, user.hashedRefreshToken);
+        if (!rtMatch) throw new ForbiddenException('Invalid refresh token');
+
+        const tokens = this.getTokens(user.id, user.email);
+        await this.updateRefreshToken(user.id, (await tokens).refresh_token);
+
+        res.cookie('refresh_token', (await tokens).refresh_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+        });
+        
+        return {
+            access_token: (await tokens).access_token,
+        }
     }
 }
