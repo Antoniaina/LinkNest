@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { success } from "zod";
+
 export class AppError extends Error {
     readonly statusCode: number
     
