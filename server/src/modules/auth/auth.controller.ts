@@ -9,5 +9,8 @@ export const signup = async (req: Request, res: Response) => {
 }
 
 export const login = async (req: Request, res: Response) => {
-    res.json({});
+    const { email, password } = req.body;
+
+    const result = await AuthService.login(email, password);
+    return res.status(result.status).json(result);
 };
