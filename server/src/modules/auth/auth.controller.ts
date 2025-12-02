@@ -67,3 +67,16 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
         next(error);
     }
 }
+
+export const logout = (req: Request, res: Response) => {
+    res.cookie("refreshToken", "", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: 0
+    });
+    return res.status(200).json({
+        success: true,
+        message: "Logout successful"
+    });
+}
