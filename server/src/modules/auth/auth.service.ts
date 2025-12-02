@@ -1,7 +1,8 @@
 import { User } from "../user/user.model";
-import { generateToken } from "../../utils/jwt";
+import { generateAccessToken, generateRefreshToken } from "../../utils/jwt";
 import bcrypt from "bcrypt";
 import { AuthError, ConflictError } from "../../middlewares/errorHandler";
+import Jwt from "jsonwebtoken";
 
 type AuthUser = {
     id: string;
@@ -10,7 +11,8 @@ type AuthUser = {
 
 type AuthPayload = {
     user: AuthUser;
-    token: string;
+    accessToken: string;
+    refreshToken: string;
 };
 
 export default class AuthService {
@@ -29,14 +31,16 @@ export default class AuthService {
             password: hashed,
         });
 
-        const token = generateToken(user._id.toString());
+        const accessToken = generateAccessToken(user._id.toString());
+        const refreshToken = generateRefreshToken(user._id.toString());
 
         return {
             user: {
                 id: user._id.toString(),
                 email: user.email,
             },
-            token,
+            accessToken,
+            refreshToken,
         };
     }
 
@@ -51,14 +55,32 @@ export default class AuthService {
             throw new AuthError("Incorrect email or password", 401);
         }
 
-        const token = generateToken(user._id.toString());
+        const accessToken = generateAccessToken(user._id.toString());
+        const refreshToken = generateRefreshToken(user._id.toString());
 
         return {
             user: {
                 id: user._id.toString(),
                 email: user.email,
             },
-            token,
+            accessToken,
+            refreshToken,
         };
+    }
+
+    static async refresh(oldRefreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+        try {
+            const decoded: any = Jwt.verify(
+                oldRefreshToken,
+                process.env.REFRESH_TOKEN_EXP! as string
+            );
+            const userId = decoded.id;
+
+            const accessToken = generateAccessToken(userId);
+            const refreshToken = generateRefreshToken(userId);
+            return { accessToken, refreshToken };
+        } catch (err) {
+            throw new AuthError("Invalid refresh token", 401);
+        }
     }
 }
